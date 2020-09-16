@@ -1,0 +1,3 @@
+include ':cJSON'
+include ':app'
+rootProject.name = "NDKPratice"
