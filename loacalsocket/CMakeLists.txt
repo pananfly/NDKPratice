@@ -1,17 +1,24 @@
 cmake_minimum_required(VERSION 3.4.1)
-
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall")
 set(SO_NAME "localsocket")
+set(
+        libcutils
+        ${CMAKE_SOURCE_DIR}/libs/libcutils/${ANDROID_ABI}/libcutils.so
+)
+set(JNI_LOG_TAG "socket")
+set(JNI_CLASS_NAME "com/pananfly/loacalsocket/LocalSocketJNIHelper")
+configure_file(src/main/cpp/config.h.in config.h @ONLY)
 
 add_library( ${SO_NAME}
              SHARED
         src/main/cpp/localsocket.c
+        src/main/cpp/lsocket.c
+        src/main/cpp/common/jni_thread.c
+        src/main/cpp/common/p_mutex.c
+        src/main/cpp/common/p_thread.c
+        src/main/cpp/common/jni_register.c
              )
-
-#add_library(libava2 STATIC IMPORTED)
-#set_target_properties(libava2 PROPERTIES IMPORTED_LOCATION
-#        ${CMAKE_SOURCE_DIR}/../avasdklib/libs/libava2/${ANDROID_ABI}/libavaClient2.a)
 
 find_library( # Sets the name of the path variable.
               log-lib
@@ -21,10 +28,15 @@ find_library( # Sets the name of the path variable.
               log )
 
 include_directories(
+        ${CMAKE_CURRENT_BINARY_DIR}
+        libs/libcutils/include
+        src/main/cpp
+        src/main/cpp/common/
         )
 
 target_link_libraries( # Specifies the target library.
                       ${SO_NAME}
+                      ${libcutils}
                       android
                       # Links the target library to the log library
                       # included in the NDK.

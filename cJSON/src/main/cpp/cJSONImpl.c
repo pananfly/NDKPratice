@@ -1,6 +1,4 @@
-//
-// Created by AVA on 9/15/2020.
-//
+
 #include <jni.h>
 #include "cJSON.h"
 #ifndef SIZELEM

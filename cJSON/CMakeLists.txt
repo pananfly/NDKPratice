@@ -11,10 +11,6 @@ add_library( ${SO_NAME}
         src/main/cpp/cJSONImpl.c
              )
 
-#add_library(libava2 STATIC IMPORTED)
-#set_target_properties(libava2 PROPERTIES IMPORTED_LOCATION
-#        ${CMAKE_SOURCE_DIR}/../avasdklib/libs/libava2/${ANDROID_ABI}/libavaClient2.a)
-
 find_library( # Sets the name of the path variable.
               log-lib
 

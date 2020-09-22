@@ -1,0 +1,2 @@
+#cmakedefine JNI_LOG_TAG "@JNI_LOG_TAG@"
+#cmakedefine JNI_CLASS_NAME "@JNI_CLASS_NAME@"

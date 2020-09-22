@@ -36,7 +36,7 @@ class LocalSocketServer (private val address: String) : Runnable {
 //                val read = localSocket?.inputStream?.read(bytes)
 //                val str = read?.let { String(bytes, 0 , it) }
 //                Log.i(TAG, "Server rec msg: $str")
-                localSocket?.outputStream?.write("Server msg 222\n".toByteArray())
+                localSocket?.outputStream?.write("Server msg $address\n".toByteArray())
                 Thread.sleep(1)
             }catch (e: Exception) {
                 e.printStackTrace()
