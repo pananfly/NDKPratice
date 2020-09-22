@@ -1,11 +1,14 @@
 package com.pananfly.loacalsocket
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import androidx.appcompat.app.AppCompatActivity
+import java.io.File
+import java.lang.Exception
 
 class LocalSocketActivity : AppCompatActivity() {
-    val client: LocalSocketClient = LocalSocketClient("77889900")
+    val client: LocalSocketClient = LocalSocketClient(SOCKET_ADDRESS)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.localsocket_main)
@@ -22,14 +25,32 @@ class LocalSocketActivity : AppCompatActivity() {
 //            server.stop()
 //            client2.stop()
 //            server2.stop()
-//        }, 5000 * 10 )
-        LocalSocketJNIHelper().startSocket()
+//
+//        }, 5000 )
+
         client.start()
+        startSocketService()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        LocalSocketJNIHelper().stopSocket()
         client.stop()
+        stopSocketService()
+    }
+
+    fun startSocketService() {
+        try {
+            startService(Intent(this, LocalSocketService::class.java))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun stopSocketService() {
+        try {
+            stopService(Intent(this, LocalSocketService::class.java))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

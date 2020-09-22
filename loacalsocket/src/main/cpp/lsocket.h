@@ -8,6 +8,7 @@ extern "C"{
 #endif /* __cplusplus */
 
 #include <stdio.h>
+#include <string.h>
 #include "p_mutex.h"
 #include "p_thread.h"
 
@@ -18,9 +19,10 @@ typedef struct LSocket {
     P_mutex *mutex;
     P_cond *cond;
     int32_t run_flag;
+    char* socket_address;
 } LSocket;
 
-LSocket* lsocket_create(int32_t (*thread_func)(void *));
+LSocket* lsocket_create(const char* address, int32_t (*thread_func)(void *));
 int32_t lsocket_release(LSocket **pSocket);
 #ifdef __cplusplus
 #if __cplusplus

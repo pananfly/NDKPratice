@@ -7,6 +7,6 @@ class LocalSocketJNIHelper {
         }
     }
     external fun test(): Int
-    external fun startSocket(): Int
+    external fun startSocket(address: String): Int
     external fun stopSocket(): Int
 }

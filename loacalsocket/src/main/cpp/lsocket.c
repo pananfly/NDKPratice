@@ -2,10 +2,10 @@
 #include "lsocket.h"
 
 
-LSocket* lsocket_create(int32_t (*thread_func)(void *))
+LSocket* lsocket_create(const char* address, int32_t (*thread_func)(void *))
 {
     LSocket* socket = NULL;
-    if(!thread_func) {
+    if(!thread_func || !address) {
         goto END;
     }
     socket = malloc(sizeof(LSocket));
@@ -14,6 +14,13 @@ LSocket* lsocket_create(int32_t (*thread_func)(void *))
         goto END;
     }
     socket->run_flag = 1;
+    socket->socket_address = malloc(strlen(address));
+    if(!socket->socket_address)
+    {
+        lsocket_release(&socket);
+        goto END;
+    }
+    strcpy(socket->socket_address, address);
     socket->mutex = P_CreateMutex();
     if(!socket->mutex)
     {
@@ -44,6 +51,11 @@ int32_t lsocket_release(LSocket **pSocket)
     {
         ret = -1;
         goto END;
+    }
+    if(socket->socket_address)
+    {
+        free(socket->socket_address);
+        socket->socket_address = NULL;
     }
     if(socket->mutex && socket->cond)
     {

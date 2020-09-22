@@ -4,7 +4,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -g -Wall")
 set(SO_NAME "localsocket")
 set(
         libcutils
-        ${CMAKE_SOURCE_DIR}/libs/libcutils/${ANDROID_ABI}/libcutils.so
+        ${CMAKE_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libcutils.so
 )
 set(JNI_LOG_TAG "socket")
 set(JNI_CLASS_NAME "com/pananfly/loacalsocket/LocalSocketJNIHelper")
