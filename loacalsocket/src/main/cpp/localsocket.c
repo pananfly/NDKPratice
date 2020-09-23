@@ -18,10 +18,20 @@
 #ifndef JNI_CLASS_NAME
 #define JNI_CLASS_NAME "package/unknown"
 #endif
-#define ADDRESS "com.pananfly.localsocket/test1"
+static const uint8_t HEAD[16] = {'P', 'A', 'N', 'S', 'O', 'C', 'K', 'E', 'T', 'H', 'E', 'A', 'D', '0', '0', '0'};
+static const uint8_t TAIL[16] = {'P', 'A', 'N', 'S', 'O', 'C', 'K', 'E', 'T', 'T', 'A', 'I', 'L', '0', '0', '0'};
 
 static LSocket* _socket;
+void intToByte(int i,uint8_t *bytes)
 
+{
+    //byte[] bytes = new byte[4];
+    memset(bytes,0,sizeof(uint8_t) *  4);
+    bytes[0] = (uint8_t) (0xff & i);
+    bytes[1] = (uint8_t) ((0xff00 & i) >> 8);
+    bytes[2] = (uint8_t) ((0xff0000 & i) >> 16);
+    bytes[3] = (uint8_t) ((0xff000000 & i) >> 24);
+}
 int socket_run(void* arg)
 {
     JNIEnv *env = NULL;
@@ -41,7 +51,7 @@ int socket_run(void* arg)
     P_SetThreadPriority(P_THREAD_PRIORITY_HIGH);
     prctl(PR_SET_NAME , _socket->socket_thread->name);
     int server_id, socket_id, bytes_sent;
-    server_id = socket_local_server(ADDRESS, ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM);
+    server_id = socket_local_server(_socket->socket_address, ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM);
     if(server_id < 0)
     {
         LOGI("Server socket_local_server invalid: %d.", server_id);
@@ -57,7 +67,28 @@ int socket_run(void* arg)
         }
         P_UnlockMutex(_socket->mutex);
     }
-    char buffer[]  = {"this message from c server \n"};
+    // mock 1920*1080 video's stream push
+    int buf_size = 1024 * 50 + sizeof(HEAD) + sizeof(TAIL); // 50k - I frame
+    uint8_t * buffer  = malloc(buf_size);
+    if(buffer)
+    {
+        memset(buffer, '1', buf_size);
+
+        memcpy(buffer, HEAD, sizeof(HEAD));
+        memcpy(buffer + (buf_size - sizeof(TAIL) - 1), TAIL, sizeof(TAIL));
+        intToByte(buf_size - sizeof(TAIL) - sizeof(TAIL) - 4, buffer + sizeof(HEAD));
+//        buffer[buf_size - 1] = '\n';
+    }
+    int buf_size2 = 1024 * 8 + sizeof(HEAD) + sizeof(TAIL); // 8k - P frame
+    uint8_t * buffer2  = malloc(buf_size2);
+    if(buffer2)
+    {
+        memset(buffer2, '2', buf_size2);
+        memcpy(buffer2, HEAD, sizeof(HEAD));
+        memcpy(buffer2 + (buf_size - sizeof(TAIL) - 1), TAIL, sizeof(TAIL));
+        intToByte(buf_size2 - sizeof(TAIL) - sizeof(TAIL) - 4, buffer2 + sizeof(HEAD));
+    }
+    int count = 0;
     while (1)
     {
         P_LockMutex(_socket->mutex);
@@ -66,10 +97,28 @@ int socket_run(void* arg)
             P_UnlockMutex(_socket->mutex);
             break;
         }
-        bytes_sent = write(socket_id, buffer, strlen(buffer));
-        LOGI("Server byte sent: %d.", bytes_sent);
+        LOGI("Server address:%s byte sent 1.", _socket->socket_address);
+        if( count % 30 == 0)
+        {
+            bytes_sent = buffer ? write(socket_id, buffer, strlen(buffer)) : -1;
+            count = 1;
+        }
+        else
+        {
+            bytes_sent = buffer2 ? write(socket_id, buffer2, strlen(buffer2)) : -1;
+        }
+        count ++;
+        LOGI("Server address:%s, byte sent: %d, count: %d.", _socket->socket_address, bytes_sent, count);
         P_UnlockMutex(_socket->mutex);
-        usleep(2000 * 100);
+        usleep(2000 * 15);
+    }
+    if(buffer)
+    {
+        free(buffer);
+    }
+    if(buffer2)
+    {
+        free(buffer2);
     }
     close(socket_id);
     close(server_id);

@@ -16,6 +16,7 @@
             </intent-filter>
         </activity>
         <service android:name=".LocalSocketService" android:process=":socket" android:enabled="true" android:exported="false"/>
+        <service android:name=".LocalSocketService2" android:process=":socket2" android:enabled="true" android:exported="false"/>
     </application>
 
 </manifest>

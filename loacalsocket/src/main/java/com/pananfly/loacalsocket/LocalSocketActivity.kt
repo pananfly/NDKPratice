@@ -9,6 +9,7 @@ import java.lang.Exception
 
 class LocalSocketActivity : AppCompatActivity() {
     val client: LocalSocketClient = LocalSocketClient(SOCKET_ADDRESS)
+    val client2: LocalSocketClient = LocalSocketClient(SOCKET_ADDRESS2)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.localsocket_main)
@@ -29,12 +30,14 @@ class LocalSocketActivity : AppCompatActivity() {
 //        }, 5000 )
 
         client.start()
+        client2.start()
         startSocketService()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         client.stop()
+        client2.stop()
         stopSocketService()
     }
 
@@ -44,11 +47,21 @@ class LocalSocketActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        try {
+            startService(Intent(this, LocalSocketService2::class.java))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun stopSocketService() {
         try {
             stopService(Intent(this, LocalSocketService::class.java))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            stopService(Intent(this, LocalSocketService2::class.java))
         } catch (e: Exception) {
             e.printStackTrace()
         }
