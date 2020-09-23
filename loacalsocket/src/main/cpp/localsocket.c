@@ -23,14 +23,26 @@ static const uint8_t TAIL[16] = {'P', 'A', 'N', 'S', 'O', 'C', 'K', 'E', 'T', 'T
 
 static LSocket* _socket;
 void intToByte(int i,uint8_t *bytes)
-
 {
     //byte[] bytes = new byte[4];
     memset(bytes,0,sizeof(uint8_t) *  4);
-    bytes[0] = (uint8_t) (0xff & i);
-    bytes[1] = (uint8_t) ((0xff00 & i) >> 8);
-    bytes[2] = (uint8_t) ((0xff0000 & i) >> 16);
-    bytes[3] = (uint8_t) ((0xff000000 & i) >> 24);
+    bytes[0] = (uint8_t) (i >> 24 & 0xFF);
+    bytes[1] = (uint8_t) (i >> 16 & 0xFF);
+    bytes[2] = (uint8_t) (i >> 8  & 0xFF);
+    bytes[3] = (uint8_t) (i       & 0xFF);
+}
+
+int byteToInt(uint8_t bytes[])
+{
+    int sum = 0;
+    if(sizeof(bytes) / sizeof(bytes[0]) < 4) {
+        return sum;
+    }
+    sum  = bytes[3]         & 0xFF;
+    sum |= (bytes[2] << 8) & 0xFF;
+    sum |= (bytes[1] << 16) & 0xFF;
+    sum |= (bytes[0] << 24) & 0xFF;
+    return sum;
 }
 int socket_run(void* arg)
 {
@@ -68,25 +80,25 @@ int socket_run(void* arg)
         P_UnlockMutex(_socket->mutex);
     }
     // mock 1920*1080 video's stream push
-    int buf_size = 1024 * 50 + sizeof(HEAD) + sizeof(TAIL); // 50k - I frame
+    int buf_size = 20 + 16 + 16; // 50k - I frame
     uint8_t * buffer  = malloc(buf_size);
     if(buffer)
     {
         memset(buffer, '1', buf_size);
 
-        memcpy(buffer, HEAD, sizeof(HEAD));
-        memcpy(buffer + (buf_size - sizeof(TAIL) - 1), TAIL, sizeof(TAIL));
-        intToByte(buf_size - sizeof(TAIL) - sizeof(TAIL) - 4, buffer + sizeof(HEAD));
+        memcpy(buffer, HEAD, 16);
+        memcpy(buffer + (buf_size - 16), TAIL, 16);
+        intToByte(buf_size - 16 - 16 - 4, buffer + 16);
 //        buffer[buf_size - 1] = '\n';
     }
-    int buf_size2 = 1024 * 8 + sizeof(HEAD) + sizeof(TAIL); // 8k - P frame
+    int buf_size2 = 10 + 16 + 16; // 8k - P frame
     uint8_t * buffer2  = malloc(buf_size2);
     if(buffer2)
     {
         memset(buffer2, '2', buf_size2);
-        memcpy(buffer2, HEAD, sizeof(HEAD));
-        memcpy(buffer2 + (buf_size - sizeof(TAIL) - 1), TAIL, sizeof(TAIL));
-        intToByte(buf_size2 - sizeof(TAIL) - sizeof(TAIL) - 4, buffer2 + sizeof(HEAD));
+        memcpy(buffer2, HEAD, 16);
+        memcpy(buffer2 + (buf_size2 - 16), TAIL, 16);
+        intToByte(buf_size2 - 16 - 16 - 4, buffer2 + 16);
     }
     int count = 0;
     while (1)
@@ -100,12 +112,12 @@ int socket_run(void* arg)
         LOGI("Server address:%s byte sent 1.", _socket->socket_address);
         if( count % 30 == 0)
         {
-            bytes_sent = buffer ? write(socket_id, buffer, strlen(buffer)) : -1;
+            bytes_sent = buffer ? write(socket_id, buffer, buf_size) : -1;
             count = 1;
         }
         else
         {
-            bytes_sent = buffer2 ? write(socket_id, buffer2, strlen(buffer2)) : -1;
+            bytes_sent = buffer2 ? write(socket_id, buffer2, buf_size2) : -1;
         }
         count ++;
         LOGI("Server address:%s, byte sent: %d, count: %d.", _socket->socket_address, bytes_sent, count);

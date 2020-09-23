@@ -30,14 +30,14 @@ class LocalSocketActivity : AppCompatActivity() {
 //        }, 5000 )
 
         client.start()
-        client2.start()
+//        client2.start()
         startSocketService()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         client.stop()
-        client2.stop()
+//        client2.stop()
         stopSocketService()
     }
 
@@ -47,11 +47,11 @@ class LocalSocketActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        try {
-            startService(Intent(this, LocalSocketService2::class.java))
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+//        try {
+//            startService(Intent(this, LocalSocketService2::class.java))
+//        } catch (e: Exception) {
+//            e.printStackTrace()
+//        }
     }
 
     fun stopSocketService() {
