@@ -5,12 +5,12 @@ static JavaVM* ava_jni_thread_jvm;
 static pthread_key_t ava_thread_key;
 static pthread_once_t ava_key_once = PTHREAD_ONCE_INIT;
 
-JNIEXPORT jint JNICALL JNI_Thread_OnLoad(JavaVM *vm , void *reserved)
+JNIEXPORT jint JNICALL JNI_Thread_OnLoad(JavaVM *vm , void *reserved, int jni_version)
 {
     int ret = 0;
     ava_jni_thread_jvm = vm;
     JNIEnv *env = NULL;
-    if((*vm)->GetEnv(vm , &env , JNI_VERSION_1_4) != JNI_OK)
+    if((*vm)->GetEnv(vm , &env , jni_version) != JNI_OK)
     {
         return -1;
     }

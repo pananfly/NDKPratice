@@ -13,6 +13,9 @@ configure_file(src/main/cpp/config.h.in config.h @ONLY)
 add_library( ${SO_NAME}
              SHARED
         src/main/cpp/localsocket.c
+        src/main/cpp/j4a/j4a_allclasses.c
+        src/main/cpp/j4a/j4a_base.c
+        src/main/cpp/j4a/class/com/pananfly/loacalsocket/local_socket_helper.c
         src/main/cpp/lsocket.c
         src/main/cpp/common/jni_thread.c
         src/main/cpp/common/p_mutex.c
@@ -32,6 +35,7 @@ include_directories(
         libs/libcutils/include
         src/main/cpp
         src/main/cpp/common/
+        src/main/cpp/j4a/class/com/pananfly/loacalsocket/
         )
 
 target_link_libraries( # Specifies the target library.

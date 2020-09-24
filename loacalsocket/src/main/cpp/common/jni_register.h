@@ -13,6 +13,8 @@ extern "C"{
 #define SIZELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
 #endif
 
+#define JNI_VERSION_USE JNI_VERSION_1_4
+
 int jni_register(JavaVM *vm, void *resered, const char *class_name, const JNINativeMethod *methods,
                  const int method_size);
 

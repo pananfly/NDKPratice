@@ -8,7 +8,7 @@ int jni_register(JavaVM *vm, void *resered, const char* class_name, const JNINat
     {
         return -1;
     }
-    if((*vm)->GetEnv(vm, (void **)&env , JNI_VERSION_1_4) != JNI_OK)
+    if((*vm)->GetEnv(vm, (void **)&env , JNI_VERSION_USE) != JNI_OK)
     {
         return -1;
     }

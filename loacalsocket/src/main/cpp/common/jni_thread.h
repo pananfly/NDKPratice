@@ -10,7 +10,7 @@ extern "C"{
 #include <jni.h>
 #include <pthread.h>
 
-JNIEXPORT jint JNICALL JNI_Thread_OnLoad(JavaVM *vm, void *reserved);
+JNIEXPORT jint JNICALL JNI_Thread_OnLoad(JavaVM *vm, void *reserved, int jni_version);
 
 JNIEXPORT void JNICALL JNI_Thread_OnUnLoad(JavaVM *vm, void *reserved);
 

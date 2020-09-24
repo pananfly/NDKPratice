@@ -7,6 +7,8 @@
 #include "config.h"
 #include "lsocket.h"
 #include "jni_thread.h"
+#include "j4a/j4a_base.h"
+#include "local_socket_helper.h"
 
 #include <cutils/sockets.h>
 #include <sys/socket.h>
@@ -15,13 +17,29 @@
 #include <string.h>
 #include <unistd.h>
 
+void* get_jni_instance(JNIEnv* env, jobject thiz, void* (get_func) (JNIEnv *env, jobject thiz))
+{
+    void* instance = (void *)(intptr_t)get_func(env, thiz);
+    return instance;
+}
+
+void* set_jni_instance(JNIEnv* env, jobject thiz , void* instance, void* (get_func) (JNIEnv *env, jobject thiz), void (set_func) (JNIEnv *env, jobject thiz, jlong value))
+{
+    void* pre_instance = get_func(env, thiz);
+    if(pre_instance)
+    {
+        pre_instance = NULL;
+    }
+    set_func(env, thiz, (intptr_t)instance);
+    return pre_instance;
+}
+
 #ifndef JNI_CLASS_NAME
 #define JNI_CLASS_NAME "package/unknown"
 #endif
 static const uint8_t HEAD[16] = {'P', 'A', 'N', 'S', 'O', 'C', 'K', 'E', 'T', 'H', 'E', 'A', 'D', '0', '0', '0'};
 static const uint8_t TAIL[16] = {'P', 'A', 'N', 'S', 'O', 'C', 'K', 'E', 'T', 'T', 'A', 'I', 'L', '0', '0', '0'};
 
-static LSocket* _socket;
 void intToByte(int i,uint8_t *bytes)
 {
     //byte[] bytes = new byte[4];
@@ -79,8 +97,9 @@ int socket_run(void* arg)
         }
         P_UnlockMutex(_socket->mutex);
     }
+    // make sure buf size less than 1024 * 1024, otherwise some devices will cause a crash. (I don't know this limit is affected same as binder or not.)
     // mock 1920*1080 video's stream push
-    int buf_size = 20 + 16 + 16; // 50k - I frame
+    int buf_size = 1024 * 50 + 16 + 16; // 50k - I frame
     uint8_t * buffer  = malloc(buf_size);
     if(buffer)
     {
@@ -89,9 +108,8 @@ int socket_run(void* arg)
         memcpy(buffer, HEAD, 16);
         memcpy(buffer + (buf_size - 16), TAIL, 16);
         intToByte(buf_size - 16 - 16 - 4, buffer + 16);
-//        buffer[buf_size - 1] = '\n';
     }
-    int buf_size2 = 10 + 16 + 16; // 8k - P frame
+    int buf_size2 = 1024 * 8 + 16 + 16; // 8k - P frame
     uint8_t * buffer2  = malloc(buf_size2);
     if(buffer2)
     {
@@ -109,7 +127,7 @@ int socket_run(void* arg)
             P_UnlockMutex(_socket->mutex);
             break;
         }
-        LOGI("Server address:%s byte sent 1.", _socket->socket_address);
+        LOGI("Server address:%s byte sent start.", _socket->socket_address);
         if( count % 30 == 0)
         {
             bytes_sent = buffer ? write(socket_id, buffer, buf_size) : -1;
@@ -161,8 +179,14 @@ static JNINativeMethod g_methods[] = {
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *resered)
 {
-    JNI_Thread_OnLoad(vm, resered);
-    return jni_register(vm, resered, JNI_CLASS_NAME, g_methods, SIZELEM(g_methods));
+    JNI_Thread_OnLoad(vm, resered, JNI_VERSION_USE);
+    int reg = jni_register(vm, resered, JNI_CLASS_NAME, g_methods, SIZELEM(g_methods));
+    JNIEnv *env = NULL;
+    if((*vm)->GetEnv(vm, (void **)&env , JNI_VERSION_USE) == JNI_OK)
+    {
+        J4A_LoadAll__catchAll(env);
+    }
+    return reg;
 }
 
 int test(JNIEnv *env, jobject thiz)
@@ -175,7 +199,8 @@ int test(JNIEnv *env, jobject thiz)
 int startSocket(JNIEnv *env, jobject thiz, jstring path)
 {
     int ret = 0;
-    if(_socket)
+    LSocket* socket = (LSocket *) get_jni_instance(env, thiz, (void *(*)(JNIEnv *, jobject)) J4AC_LocalSocketJNIHelper__mNativeInstance__get__catchAll);
+    if(socket)
     {
         return 0;
     }
@@ -184,11 +209,15 @@ int startSocket(JNIEnv *env, jobject thiz, jstring path)
         ret = -1;
         return ret;
     }
-    _socket = lsocket_create(address, socket_run);
-    if(!_socket)
+    socket = lsocket_create(address, socket_run);
+    if(!socket)
     {
         ret = -1;
+        goto END;
     }
+    LOGI("Start socket server address:%s .", address);
+    set_jni_instance(env, thiz, socket, (void *(*)(JNIEnv *, jobject)) J4AC_LocalSocketJNIHelper__mNativeInstance__get__catchAll, J4AC_LocalSocketJNIHelper__mNativeInstance__set__catchAll);
+    END:
     (*env)->ReleaseStringUTFChars(env, path, address);
     return ret;
 }
@@ -196,10 +225,12 @@ int startSocket(JNIEnv *env, jobject thiz, jstring path)
 int stopSocket(JNIEnv *env, jobject thiz)
 {
     int ret = 0;
-    if(!_socket)
+    LSocket* socket = (LSocket *) get_jni_instance(env, thiz, (void *(*)(JNIEnv *, jobject)) J4AC_LocalSocketJNIHelper__mNativeInstance__get__catchAll);
+    if(!socket)
     {
         return -1;
     }
-    ret = lsocket_release(&_socket);
+    LOGI("Stop socket server address:%s .", socket->socket_address);
+    ret = lsocket_release(&socket);
     return ret;
 }
