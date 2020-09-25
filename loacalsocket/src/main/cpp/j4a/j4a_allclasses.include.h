@@ -1,1 +1,6 @@
 #include "j4a/class/com/pananfly/loacalsocket/local_socket_helper.h"
+#include "j4a/class/android/net/LocalServerSocket.h"
+#include "j4a/class/android/net/LocalSocket.h"
+#include "j4a/class/android/net/LocalSocketAddress.h"
+#include "j4a/class/java/io/InputStream.h"
+#include "j4a/class/java/io/OutputStream.h"

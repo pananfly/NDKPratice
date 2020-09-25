@@ -9,6 +9,10 @@
 #include "jni_thread.h"
 #include "j4a/j4a_base.h"
 #include "local_socket_helper.h"
+#include "LocalServerSocket.h"
+#include "LocalSocket.h"
+#include "LocalSocketAddress.h"
+#include "OutputStream.h"
 
 #include <cutils/sockets.h>
 #include <sys/socket.h>
@@ -62,6 +66,12 @@ int byteToInt(uint8_t bytes[])
     sum |= (bytes[0] << 24) & 0xFF;
     return sum;
 }
+
+/**
+ * So library implement, please notice of equipment compatible, these so files were pulled from a tablet device, maybe not applicable for your devices.
+ * @param arg
+ * @return
+ */
 int socket_run(void* arg)
 {
     JNIEnv *env = NULL;
@@ -155,6 +165,169 @@ int socket_run(void* arg)
     return ret;
 }
 
+
+// call back java local socket implement, just test run success.
+int socket_run2(void* arg)
+{
+    JNIEnv *env = NULL;
+    int32_t ret = 0;
+    if(JNI_Thread_SetupThreadEnv(&env) != JNI_OK)
+    {
+        ret = -1;
+        return ret;
+    }
+    LSocket *_socket = (LSocket *) arg;
+    if(!_socket)
+    {
+        ret = -2;
+        return ret;
+    }
+
+    P_SetThreadPriority(P_THREAD_PRIORITY_HIGH);
+    prctl(PR_SET_NAME , _socket->socket_thread->name);
+    int bytes_sent;
+    jobject global_local_socket_client = NULL;
+    jobject global_local_socket_output_stream = NULL;
+    jobject  global_local_socket_server = J4AC_LocalServerSocket__LocalServerSocket__withCString__asGlobalRef__catchAll(env, _socket->socket_address);
+    if(!global_local_socket_server)
+    {
+        ret = -3;
+        return ret;
+    }
+    // Make sure buf size less than 1024 * 1024, otherwise some devices will cause a crash. (I don't know this limit is affected same as binder or not.)
+    // ps: This implementation send more than 1024 * 1024 bytes won't crash on some devices(crash implement by so library).
+
+    // mock 1920*1080 video's stream push
+    int buf_size = 1024 * 50 + 16 + 16; // 50k - I frame
+    uint8_t * buffer  = malloc(buf_size);
+    if(buffer)
+    {
+        memset(buffer, '1', buf_size);
+
+        memcpy(buffer, HEAD, 16);
+        memcpy(buffer + (buf_size - 16), TAIL, 16);
+        intToByte(buf_size - 16 - 16 - 4, buffer + 16);
+    }
+    int buf_size2 = 1024 * 8 + 16 + 16; // 8k - P frame
+    uint8_t * buffer2  = malloc(buf_size2);
+    if(buffer2)
+    {
+        memset(buffer2, '2', buf_size2);
+        memcpy(buffer2, HEAD, 16);
+        memcpy(buffer2 + (buf_size2 - 16), TAIL, 16);
+        intToByte(buf_size2 - 16 - 16 - 4, buffer2 + 16);
+    }
+    int count = 0;
+    while (1)
+    {
+
+        if(!global_local_socket_client)
+        {
+            while ((global_local_socket_client = J4AC_LocalServerSocket__accept__asGlobalRef__catchAll(env, global_local_socket_server)) == NULL) {
+                P_LockMutex(_socket->mutex);
+                if(!_socket->run_flag)
+                {
+                    P_UnlockMutex(_socket->mutex);
+                    break;
+                }
+                P_UnlockMutex(_socket->mutex);
+                usleep(100);
+            }
+        }
+
+        P_LockMutex(_socket->mutex);
+        if(!_socket->run_flag)
+        {
+            P_UnlockMutex(_socket->mutex);
+            break;
+        }
+
+        if(global_local_socket_client)
+        {
+            // unsupport check is closed.
+//            if(J4AC_LocalSocket__isClosed__catchAll(env, global_local_socket_client))
+//            {
+//                if(global_local_socket_output_stream)
+//                {
+//                    J4A_DeleteGlobalRef__p(env, &global_local_socket_output_stream);
+//                }
+//                J4A_DeleteGlobalRef__p(env, &global_local_socket_client);
+//                continue;
+//            }
+            if(!global_local_socket_output_stream)
+            {
+                global_local_socket_output_stream = J4AC_LocalSocket__getOutputStream__asGlobalRef__catchAll(env, global_local_socket_client);
+            }
+        }
+        else
+        {
+            continue;
+        }
+
+        LOGI("Server(Java impl) address:%s byte sent start.", _socket->socket_address);
+        if( count % 30 == 0)
+        {
+            jbyteArray write_buffer = J4A_NewByteArray__catchAll(env, buf_size);
+            if(write_buffer && buffer)
+            {
+                (*env)->SetByteArrayRegion(env, write_buffer, 0, (int)buf_size, (jbyte*) buffer);
+                J4AC_java_io_OutputStream__write__catchAll(env, global_local_socket_output_stream, write_buffer, 0, buf_size);
+                bytes_sent = buf_size;
+            }
+            else
+            {
+                bytes_sent = -1;
+            }
+            if(write_buffer)
+            {
+                J4A_DeleteLocalRef__p(env, &write_buffer);
+            }
+            count = 1;
+        }
+        else
+        {
+            jbyteArray write_buffer = J4A_NewByteArray__catchAll(env, buf_size2);
+            if(write_buffer && buffer)
+            {
+                (*env)->SetByteArrayRegion(env, write_buffer, 0, (int)buf_size2, (jbyte*) buffer2);
+                J4AC_java_io_OutputStream__write__catchAll(env, global_local_socket_output_stream, write_buffer, 0, buf_size2);
+                bytes_sent = buf_size2;
+            }
+            else
+            {
+                bytes_sent = -1;
+            }
+            if(write_buffer)
+            {
+                J4A_DeleteLocalRef__p(env, &write_buffer);
+            }
+        }
+        count ++;
+        LOGI("Server(Java impl) address:%s, byte sent: %d, count: %d.", _socket->socket_address, bytes_sent, count);
+        P_UnlockMutex(_socket->mutex);
+        usleep(2000 * 15);
+    }
+    if(buffer)
+    {
+        free(buffer);
+    }
+    if(buffer2)
+    {
+        free(buffer2);
+    }
+    if(global_local_socket_client)
+    {
+        J4AC_LocalSocket__close__catchAll(env, global_local_socket_client);
+        J4A_DeleteGlobalRef__p(env, &global_local_socket_client);
+    }
+    if(global_local_socket_server)
+    {
+        J4AC_LocalServerSocket__close__catchAll(env, global_local_socket_server);
+        J4A_DeleteGlobalRef__p(env, &global_local_socket_server);
+    }
+    return ret;
+}
+
 int test(JNIEnv *env, jobject thiz);
 int startSocket(JNIEnv *env, jobject thiz, jstring path);
 int stopSocket(JNIEnv *env, jobject thiz);
@@ -209,7 +382,7 @@ int startSocket(JNIEnv *env, jobject thiz, jstring path)
         ret = -1;
         return ret;
     }
-    socket = lsocket_create(address, socket_run);
+    socket = lsocket_create(address, socket_run2);
     if(!socket)
     {
         ret = -1;

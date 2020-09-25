@@ -53,6 +53,8 @@ class LocalSocketClient (private val address: String, private val bufFile: File)
         while (!isConnect.get() && isRunning.get()) {
             try {
                 mLocalSocket.connect(LocalSocketAddress(address))
+
+                Log.i(TAG, "Client buffer rec size: ${mLocalSocket.receiveBufferSize}, send size: ${mLocalSocket.sendBufferSize}.")
                 isConnect.set(true)
                 break
             } catch (e: Exception) {

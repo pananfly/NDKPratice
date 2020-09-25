@@ -43,5 +43,6 @@ class LocalSocketServer (private val address: String) : Runnable {
             }
         }
         localSocket?.close()
+        mLocalServerSocket.close()
     }
 }

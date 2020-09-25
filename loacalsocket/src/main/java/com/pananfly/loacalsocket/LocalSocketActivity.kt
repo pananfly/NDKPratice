@@ -62,11 +62,6 @@ class LocalSocketActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-//        try {
-//            startService(Intent(this, LocalSocketService2::class.java))
-//        } catch (e: Exception) {
-//            e.printStackTrace()
-//        }
     }
 
     fun stopSocketService() {
