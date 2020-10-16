@@ -198,42 +198,31 @@ int socket_run2(void* arg)
     // ps: This implementation send more than 1024 * 1024 bytes won't crash on some devices(crash implement by so library).
 
     // mock 1920*1080 video's stream push
-    int buf_size = 1024 * 50 + 16 + 16; // 50k - I frame
+    int head_size = sizeof(HEAD)/ sizeof(HEAD[0]);
+    int tail_size = sizeof(TAIL)/ sizeof(TAIL[0]);
+    int len_size = 4;
+    int buf_size = 1024 * 50 + head_size + tail_size + len_size; // 50k - I frame
     uint8_t * buffer  = malloc(buf_size);
     if(buffer)
     {
         memset(buffer, '1', buf_size);
 
-        memcpy(buffer, HEAD, 16);
-        memcpy(buffer + (buf_size - 16), TAIL, 16);
-        intToByte(buf_size - 16 - 16 - 4, buffer + 16);
+        memcpy(buffer, HEAD, head_size);
+        memcpy(buffer + (buf_size - tail_size), TAIL, tail_size);
+        intToByte(buf_size - head_size - tail_size - len_size, buffer + head_size);
     }
-    int buf_size2 = 1024 * 8 + 16 + 16; // 8k - P frame
+    int buf_size2 = 1024 * 8 + head_size + tail_size + len_size; // 8k - P frame
     uint8_t * buffer2  = malloc(buf_size2);
     if(buffer2)
     {
         memset(buffer2, '2', buf_size2);
-        memcpy(buffer2, HEAD, 16);
-        memcpy(buffer2 + (buf_size2 - 16), TAIL, 16);
-        intToByte(buf_size2 - 16 - 16 - 4, buffer2 + 16);
+        memcpy(buffer2, HEAD, head_size);
+        memcpy(buffer2 + (buf_size2 - tail_size), TAIL, tail_size);
+        intToByte(buf_size2 - head_size - tail_size - len_size, buffer2 + head_size);
     }
     int count = 0;
     while (1)
     {
-
-        if(!global_local_socket_client)
-        {
-            while ((global_local_socket_client = J4AC_LocalServerSocket__accept__asGlobalRef__catchAll(env, global_local_socket_server)) == NULL) {
-                P_LockMutex(_socket->mutex);
-                if(!_socket->run_flag)
-                {
-                    P_UnlockMutex(_socket->mutex);
-                    break;
-                }
-                P_UnlockMutex(_socket->mutex);
-                usleep(100);
-            }
-        }
 
         P_LockMutex(_socket->mutex);
         if(!_socket->run_flag)
@@ -241,71 +230,83 @@ int socket_run2(void* arg)
             P_UnlockMutex(_socket->mutex);
             break;
         }
-
+        P_UnlockMutex(_socket->mutex);
+        // accept client(block thread).
+        global_local_socket_client = J4AC_LocalServerSocket__accept__asGlobalRef__catchAll(env, global_local_socket_server);
         if(global_local_socket_client)
         {
-            // unsupport check is closed.
-//            if(J4AC_LocalSocket__isClosed__catchAll(env, global_local_socket_client))
-//            {
-//                if(global_local_socket_output_stream)
-//                {
-//                    J4A_DeleteGlobalRef__p(env, &global_local_socket_output_stream);
-//                }
-//                J4A_DeleteGlobalRef__p(env, &global_local_socket_client);
-//                continue;
-//            }
-            if(!global_local_socket_output_stream)
+            global_local_socket_output_stream = J4AC_LocalSocket__getOutputStream__asGlobalRef__catchAll(env, global_local_socket_client);
+        }
+        LOGI("Server(Java impl) address:%s accept socket start client:%d, ops:%d.", _socket->socket_address, global_local_socket_client != NULL, global_local_socket_output_stream != NULL);
+        while(global_local_socket_output_stream)
+        {
+            P_LockMutex(_socket->mutex);
+            if(!_socket->run_flag)
             {
-                global_local_socket_output_stream = J4AC_LocalSocket__getOutputStream__asGlobalRef__catchAll(env, global_local_socket_client);
+                P_UnlockMutex(_socket->mutex);
+                break;
             }
-        }
-        else
-        {
-            continue;
-        }
-
-        LOGI("Server(Java impl) address:%s byte sent start.", _socket->socket_address);
-        if( count % 30 == 0)
-        {
-            jbyteArray write_buffer = J4A_NewByteArray__catchAll(env, buf_size);
-            if(write_buffer && buffer)
+            LOGI("Server(Java impl) address:%s byte sent start.", _socket->socket_address);
+            bool exception = false;
+            if( count % 30 == 0)
             {
-                (*env)->SetByteArrayRegion(env, write_buffer, 0, (int)buf_size, (jbyte*) buffer);
-                J4AC_java_io_OutputStream__write__catchAll(env, global_local_socket_output_stream, write_buffer, 0, buf_size);
-                bytes_sent = buf_size;
+                jbyteArray write_buffer = J4A_NewByteArray__catchAll(env, buf_size);
+                if(write_buffer && buffer)
+                {
+                    (*env)->SetByteArrayRegion(env, write_buffer, 0, (int)buf_size, (jbyte*) buffer);
+                    J4AC_java_io_OutputStream__write(env, global_local_socket_output_stream, write_buffer, 0, buf_size);
+                    exception = J4A_ExceptionCheck__catchAll(env);
+                    bytes_sent = buf_size;
+                }
+                else
+                {
+                    bytes_sent = -1;
+                }
+                if(write_buffer)
+                {
+                    J4A_DeleteLocalRef__p(env, &write_buffer);
+                }
+                count = 1;
             }
             else
             {
-                bytes_sent = -1;
+                jbyteArray write_buffer = J4A_NewByteArray__catchAll(env, buf_size2);
+                if(write_buffer && buffer)
+                {
+                    (*env)->SetByteArrayRegion(env, write_buffer, 0, (int)buf_size2, (jbyte*) buffer2);
+                    J4AC_java_io_OutputStream__write(env, global_local_socket_output_stream, write_buffer, 0, buf_size2);
+                    exception = J4A_ExceptionCheck__catchAll(env);
+                    bytes_sent = buf_size2;
+                }
+                else
+                {
+                    bytes_sent = -1;
+                }
+                if(write_buffer)
+                {
+                    J4A_DeleteLocalRef__p(env, &write_buffer);
+                }
             }
-            if(write_buffer)
+            count ++;
+            LOGI("Server(Java impl) address:%s, byte sent: %d, count: %d.", _socket->socket_address, bytes_sent, count);
+            P_UnlockMutex(_socket->mutex);
+            if(exception)
             {
-                J4A_DeleteLocalRef__p(env, &write_buffer);
+                break;
             }
-            count = 1;
+            usleep(2000 * 15);
         }
-        else
+        if(global_local_socket_client)
         {
-            jbyteArray write_buffer = J4A_NewByteArray__catchAll(env, buf_size2);
-            if(write_buffer && buffer)
-            {
-                (*env)->SetByteArrayRegion(env, write_buffer, 0, (int)buf_size2, (jbyte*) buffer2);
-                J4AC_java_io_OutputStream__write__catchAll(env, global_local_socket_output_stream, write_buffer, 0, buf_size2);
-                bytes_sent = buf_size2;
-            }
-            else
-            {
-                bytes_sent = -1;
-            }
-            if(write_buffer)
-            {
-                J4A_DeleteLocalRef__p(env, &write_buffer);
-            }
+            J4AC_LocalSocket__close__catchAll(env, global_local_socket_client);
+            J4A_DeleteGlobalRef__p(env, &global_local_socket_client);
         }
-        count ++;
-        LOGI("Server(Java impl) address:%s, byte sent: %d, count: %d.", _socket->socket_address, bytes_sent, count);
-        P_UnlockMutex(_socket->mutex);
-        usleep(2000 * 15);
+        if(global_local_socket_output_stream)
+        {
+            J4AC_OutputStream__close__catchAll(env, global_local_socket_output_stream);
+            J4A_DeleteGlobalRef__p(env, &global_local_socket_output_stream);
+        }
+        LOGI("Server(Java impl) address:%s accept socket end.", _socket->socket_address);
     }
     if(buffer)
     {
@@ -315,16 +316,12 @@ int socket_run2(void* arg)
     {
         free(buffer2);
     }
-    if(global_local_socket_client)
-    {
-        J4AC_LocalSocket__close__catchAll(env, global_local_socket_client);
-        J4A_DeleteGlobalRef__p(env, &global_local_socket_client);
-    }
     if(global_local_socket_server)
     {
         J4AC_LocalServerSocket__close__catchAll(env, global_local_socket_server);
         J4A_DeleteGlobalRef__p(env, &global_local_socket_server);
     }
+    LOGI("Server(Java impl) address:%s thread end.", _socket->socket_address);
     return ret;
 }
 

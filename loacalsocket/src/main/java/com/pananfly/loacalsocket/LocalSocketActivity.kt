@@ -2,6 +2,7 @@ package com.pananfly.loacalsocket
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.pananfly.loacalsocket.service.*
 import java.io.File
@@ -29,21 +30,29 @@ class LocalSocketActivity : AppCompatActivity() {
         client7 = LocalSocketClient(SOCKET_ADDRESS6, File(this.externalCacheDir?.absolutePath, "client7.txt") .apply {  if(!this.exists()) {  this.parentFile?.mkdirs(); this.createNewFile() } })
         client8 = LocalSocketClient(SOCKET_ADDRESS7, File(this.externalCacheDir?.absolutePath, "client8.txt") .apply {  if(!this.exists()) {  this.parentFile?.mkdirs(); this.createNewFile() } })
         client9 = LocalSocketClient(SOCKET_ADDRESS8, File(this.externalCacheDir?.absolutePath, "client9.txt") .apply {  if(!this.exists()) {  this.parentFile?.mkdirs(); this.createNewFile() } })
+        findViewById<View>(R.id.btn_start).setOnClickListener {
+            startClient()
+        }
+        findViewById<View>(R.id.btn_stop).setOnClickListener {
+            stopClient()
+        }
 
-        client?.start()
-        client2?.start()
-        client3?.start()
-        client4?.start()
-        client5?.start()
-        client6?.start()
-        client7?.start()
-        client8?.start()
-        client9?.start()
         startSocketService()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    private fun startClient() {
+        client?.start()
+//        client2?.start()
+//        client3?.start()
+//        client4?.start()
+//        client5?.start()
+//        client6?.start()
+//        client7?.start()
+//        client8?.start()
+//        client9?.start()
+    }
+
+    private fun stopClient() {
         client?.stop()
         client2?.stop()
         client3?.stop()
@@ -53,6 +62,11 @@ class LocalSocketActivity : AppCompatActivity() {
         client7?.stop()
         client8?.stop()
         client9?.stop()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopClient()
         stopSocketService()
     }
 

@@ -21,7 +21,7 @@ class LocalSocketClient (private val address: String, private val bufFile: File)
         'S'.toByte(), 'O'.toByte(), 'C'.toByte(), 'K'.toByte(), 'E'.toByte(), 'T'.toByte(),
         'T'.toByte(), 'A'.toByte(), 'I'.toByte(), 'L'.toByte(), '0'.toByte(), '0'.toByte(), '0'.toByte())
     private val PACKAGE_OCCUPY_LEN = 4
-    private var mLocalSocket: LocalSocket = LocalSocket()
+    private var mLocalSocket: LocalSocket? = null
     private val isRunning: AtomicBoolean = AtomicBoolean(false)
     private val isConnect: AtomicBoolean = AtomicBoolean(false)
 
@@ -50,11 +50,12 @@ class LocalSocketClient (private val address: String, private val bufFile: File)
     }
 
     override fun run() {
+        mLocalSocket = LocalSocket()
         while (!isConnect.get() && isRunning.get()) {
             try {
-                mLocalSocket.connect(LocalSocketAddress(address))
+                mLocalSocket?.connect(LocalSocketAddress(address))
 
-                Log.i(TAG, "Client buffer rec size: ${mLocalSocket.receiveBufferSize}, send size: ${mLocalSocket.sendBufferSize}.")
+                Log.i(TAG, "Client buffer rec size: ${mLocalSocket?.receiveBufferSize}, send size: ${mLocalSocket?.sendBufferSize}.")
                 isConnect.set(true)
                 break
             } catch (e: Exception) {
@@ -76,7 +77,7 @@ class LocalSocketClient (private val address: String, private val bufFile: File)
         var packageSize = 0
         while(isRunning.get()) {
             try {
-                var readByte = mLocalSocket.inputStream.read(bytes)
+                var readByte = mLocalSocket?.inputStream?.read(bytes) ?: 0
                 if(readByte != -1) {
                     bos.write(bytes, 0, readByte)
                     val cacheByte = bos.toByteArray()
@@ -142,7 +143,7 @@ class LocalSocketClient (private val address: String, private val bufFile: File)
 //                                    } catch (e: Exception) {
 //                                        e.printStackTrace()
 //                                    }
-                                    Log.i(TAG, "Client address:$address rec msg size: $packageSize, data: ${String(cacheByte, bIndex, packageSize, Charset.forName("utf-8"))}")
+                                    Log.i(TAG, "Client address:$address rec msg size: $packageSize, data:")
                                     packageSize = 0
                                     bIndex = tailIndex + TAIL.size
                                  }
@@ -173,6 +174,7 @@ class LocalSocketClient (private val address: String, private val bufFile: File)
             e.printStackTrace()
         }
         bos.reset()
-        mLocalSocket.close()
+        mLocalSocket?.close()
+        mLocalSocket = null
     }
 }
